@@ -38,12 +38,20 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 
 /* grupos */
 .grp,.fav,.empty-card{background:var(--card);border-radius:var(--r);margin-bottom:14px;box-shadow:0 1px 2px rgba(20,20,30,.06),0 6px 18px rgba(20,20,30,.05)}
-.grp{padding:16px 18px 8px}
-.grp header{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:4px}
+.grp{position:relative;overflow:hidden;padding:16px 18px 8px}
+.grp header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:4px}
+.hr{display:flex;align-items:center;gap:10px;flex:none}
 .grp h2{margin:0;font-size:15.5px;font-weight:600;line-height:1.25}
 .grp .d{color:var(--mut);font-size:12.5px;white-space:nowrap}
 .grp .d b{color:var(--accent);font-weight:600}
 .grp.ed{outline:2px dashed var(--line);cursor:pointer}
+.rf{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:var(--mut);border:1px solid var(--line);background:var(--card)}
+.rf svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.rf:active{background:var(--bg)}
+.rf.spin svg{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.bar{position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--accent);transform-origin:left;transform:scaleX(0);animation:fillbar 30s linear forwards}
+@keyframes fillbar{to{transform:scaleX(1)}}
 .row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px 0}
 .row+.row{border-top:1px solid var(--line)}
 .who{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0}
@@ -200,6 +208,7 @@ function cleanGroups(){
 /* ---------- estado ---------- */
 const S={tab:'home',edit:false,here:null,gs:null,ms:null,flash:''};
 const arrivals={}; let lastUpdate=null;
+const GT={},GB={};let lastLoc=0;
 
 /* ---------- API ---------- */
 async function fetchStop(code){
@@ -242,7 +251,7 @@ function etaOf(c,s){
 
 /* ---------- Inicio ---------- */
 function renderHome(){
-  let h=`<div class="wrap"><div class="hd"><div><small>${lastUpdate?'Actualizado '+lastUpdate.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'Consultando…'}</small><h1>Mis micros</h1></div>${D.groups.length?`<button class="tx" id="ed">${S.edit?'Listo':'Editar'}</button>`:''}</div>`;
+  let h=`<div class="wrap"><div class="hd"><div><small>${lastUpdate?'Actualizado '+lastUpdate.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):(D.groups.length?'Consultando…':'')}</small><h1>Mis micros</h1></div>${D.groups.length?`<button class="tx" id="ed">${S.edit?'Listo':'Editar'}</button>`:''}</div>`;
   if(!D.favs.length){
     h+=`<div class="empty-card"><h2>Aún no tienes paraderos</h2><p>Toca un paradero en el mapa y guárdalo en favoritos. Después arma aquí tus grupos de micros.</p><button class="btn" data-go="map">Ir al mapa</button></div>`;
   }else{
@@ -251,28 +260,32 @@ function renderHome(){
     h+=gs.map(({g,d},i)=>{
       const rows=g.items.map(([c,s])=>({c,s,e:etaOf(c,s)})).sort((a,b)=>a.e.lo-b.e.lo);
       const dl=d==null?'':(i===0&&gs.length>1?'<b>Más cercano</b> · ':'')+'a '+fmt(Math.round(d));
-      return `<article class="grp${S.edit?' ed':''}" data-g="${g.id}"><header><h2>${esc(g.title)}</h2><span class="d">${S.edit?'Editar ›':dl}</span></header>
-        ${rows.map(r=>`<div class="row"><div class="who"><span class="svc">${esc(r.s)}</span><span class="at">${esc(fav(r.c)?.name||r.c)}</span></div>${r.e.h}</div>`).join('')}</article>`;
+      return `<article class="grp${S.edit?' ed':''}" data-g="${g.id}"><header><h2>${esc(g.title)}</h2><div class="hr"><span class="d">${S.edit?'Editar ›':dl}</span>${S.edit?'':`<button class="rf${GB[g.id]?' spin':''}" data-rf="${g.id}" aria-label="Actualizar ${esc(g.title)}"${GB[g.id]?' disabled':''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 11-2.6-5.9"/><path d="M20 4v5h-5"/></svg></button>`}</div></header>
+        ${rows.map(r=>`<div class="row"><div class="who"><span class="svc">${esc(r.s)}</span><span class="at">${esc(fav(r.c)?.name||r.c)}</span></div>${r.e.h}</div>`).join('')}<div class="bar" style="animation-delay:-${GT[g.id]?Math.min(30,(Date.now()-GT[g.id])/1000).toFixed(2):0}s"></div></article>`;
     }).join('');
     h+='<button class="newg" id="ng">+ Nuevo grupo</button>';
   }
   $('#home').innerHTML=h+'</div>';
 }
 
-async function refreshAll(){
-  locate();
-  const codes=[...new Set(D.groups.flatMap(g=>g.items.map(i=>i[0])))];
+async function refreshGroup(id){
+  const g=D.groups.find(x=>x.id===id); if(!g||GB[id]) return;
+  GB[id]=true; if(S.tab==='home') renderHome();
+  const codes=[...new Set(g.items.map(i=>i[0]))];
   await Promise.all(codes.map(async c=>{
     try{
       const data=await fetchStop(c); arrivals[c]={data};
       const f=fav(c); if(f&&data.name&&f.name!==data.name){f.name=data.name;save()}
     }catch(e){arrivals[c]={...(arrivals[c]||{}),err:true}}
   }));
-  lastUpdate=new Date(); if(S.tab==='home') renderHome();
+  GB[id]=false; GT[id]=Date.now(); lastUpdate=new Date();
+  if(S.tab==='home') renderHome();
 }
+function refreshAll(){locate();return Promise.all(D.groups.map(g=>refreshGroup(g.id)))}
 
 $('#home').addEventListener('click',e=>{
   const t=e.target;
+  const rf=t.closest('[data-rf]'); if(rf) return refreshGroup(+rf.dataset.rf);
   if(t.id==='ed'){S.edit=!S.edit;return renderHome()}
   if(t.id==='ng') return openG(0);
   if(t.dataset.go) return setTab(t.dataset.go);
@@ -465,7 +478,7 @@ $('#sh').addEventListener('click',e=>{
     const items=[...g.set].map(v=>{const i=v.indexOf('|');return[v.slice(0,i),v.slice(i+1)]}),title=`${g.a} → ${g.b}`;
     if(g.id){const x=D.groups.find(y=>y.id===g.id);if(x){x.title=title;x.items=items}}
     else D.groups.push({id:D.nid++,title,items});
-    save();closeG();renderHome();refreshAll();
+    if(g.id)GT[g.id]=0;save();closeG();renderHome();
   }
 });
 $('#sh').addEventListener('keydown',e=>{if(e.target.id==='oi'&&e.key==='Enter'){e.preventDefault();addOwn()}});
@@ -477,7 +490,7 @@ function setTab(t){
   $('#v-fav').classList.toggle('on',t==='fav');
   $('#v-map').classList.toggle('on',t==='map');
   document.querySelectorAll('.nav button').forEach(b=>b.setAttribute('aria-current',b.dataset.t===t?'page':'false'));
-  if(t==='home'){renderHome();refreshAll()}
+  if(t==='home'){renderHome();locate()}
   if(t==='fav') renderFav();
   if(t==='map'){
     initMap();
@@ -485,7 +498,12 @@ function setTab(t){
   }
 }
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>setTab(b.dataset.t));
-setInterval(()=>{if(!document.hidden&&S.tab==='home'&&!S.gs)refreshAll()},30000);
+setInterval(()=>{
+  if(document.hidden||S.tab!=='home') return;
+  const now=Date.now();
+  if(now-lastLoc>=30000){lastLoc=now;locate()}
+  D.groups.forEach(g=>{if(!GB[g.id]&&(!GT[g.id]||now-GT[g.id]>=30000))refreshGroup(g.id)});
+},1000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.tab==='home')refreshAll()});
 
 /* ---------- arranque ---------- */

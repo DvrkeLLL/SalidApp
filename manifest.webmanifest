@@ -1,0 +1,13 @@
+{
+  "name": "SalidApp",
+  "short_name": "SalidApp",
+  "description": "Mira en cuántos minutos pasa tu micro en tus paraderos favoritos.",
+  "start_url": "SalidApp.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    { "src": "Icono_SalidApp.PNG", "sizes": "192x192 512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
