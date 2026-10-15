@@ -50,7 +50,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .rf:active{background:var(--bg)}
 .rf.spin svg{animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.bar{position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--accent);transform-origin:left;transform:scaleX(0);animation:fillbar 30s linear forwards}
+.bar{position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--accent);transform-origin:left;transform:scaleX(0);animation:fillbar 60s linear forwards}
 @keyframes fillbar{to{transform:scaleX(1)}}
 .row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px 0}
 .row+.row{border-top:1px solid var(--line)}
@@ -250,18 +250,20 @@ function etaOf(c,s){
 }
 
 /* ---------- Inicio ---------- */
+function ordG(){return D.groups.map((g,i)=>({g,i,d:gDist(g)})).sort((a,b)=>(a.d??Infinity)-(b.d??Infinity)||a.i-b.i)}
+
 function renderHome(){
   let h=`<div class="wrap"><div class="hd"><div><small>${lastUpdate?'Actualizado '+lastUpdate.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):(D.groups.length?'Consultando…':'')}</small><h1>Mis micros</h1></div>${D.groups.length?`<button class="tx" id="ed">${S.edit?'Listo':'Editar'}</button>`:''}</div>`;
   if(!D.favs.length){
     h+=`<div class="empty-card"><h2>Aún no tienes paraderos</h2><p>Toca un paradero en el mapa y guárdalo en favoritos. Después arma aquí tus grupos de micros.</p><button class="btn" data-go="map">Ir al mapa</button></div>`;
   }else{
-    const gs=D.groups.map((g,i)=>({g,i,d:gDist(g)})).sort((a,b)=>(a.d??Infinity)-(b.d??Infinity)||a.i-b.i);
+    const gs=ordG();
     if(!gs.length) h+='<p class="empty">Crea tu primer grupo con micros de tus paraderos favoritos.</p>';
     h+=gs.map(({g,d},i)=>{
       const rows=g.items.map(([c,s])=>({c,s,e:etaOf(c,s)})).sort((a,b)=>a.e.lo-b.e.lo);
       const dl=d==null?'':(i===0&&gs.length>1?'<b>Más cercano</b> · ':'')+'a '+fmt(Math.round(d));
       return `<article class="grp${S.edit?' ed':''}" data-g="${g.id}"><header><h2>${esc(g.title)}</h2><div class="hr"><span class="d">${S.edit?'Editar ›':dl}</span>${S.edit?'':`<button class="rf${GB[g.id]?' spin':''}" data-rf="${g.id}" aria-label="Actualizar ${esc(g.title)}"${GB[g.id]?' disabled':''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 11-2.6-5.9"/><path d="M20 4v5h-5"/></svg></button>`}</div></header>
-        ${rows.map(r=>`<div class="row"><div class="who"><span class="svc">${esc(r.s)}</span><span class="at">${esc(fav(r.c)?.name||r.c)}</span></div>${r.e.h}</div>`).join('')}<div class="bar" style="animation-delay:-${GT[g.id]?Math.min(30,(Date.now()-GT[g.id])/1000).toFixed(2):0}s"></div></article>`;
+        ${rows.map(r=>`<div class="row"><div class="who"><span class="svc">${esc(r.s)}</span><span class="at">${esc(fav(r.c)?.name||r.c)}</span></div>${r.e.h}</div>`).join('')}${i===0?`<div class="bar" style="animation-delay:-${GT[g.id]?Math.min(60,(Date.now()-GT[g.id])/1000).toFixed(2):0}s"></div>`:''}</article>`;
     }).join('');
     h+='<button class="newg" id="ng">+ Nuevo grupo</button>';
   }
@@ -476,9 +478,10 @@ $('#sh').addEventListener('click',e=>{
   if(t.id==='gdel'){D.groups=D.groups.filter(x=>x.id!==g.id);save();closeG();return renderHome()}
   if(t.id==='gsave'&&canSave(g)){
     const items=[...g.set].map(v=>{const i=v.indexOf('|');return[v.slice(0,i),v.slice(i+1)]}),title=`${g.a} → ${g.b}`;
-    if(g.id){const x=D.groups.find(y=>y.id===g.id);if(x){x.title=title;x.items=items}}
-    else D.groups.push({id:D.nid++,title,items});
-    if(g.id)GT[g.id]=0;save();closeG();renderHome();
+    let gid=g.id;
+    if(gid){const x=D.groups.find(y=>y.id===gid);if(x){x.title=title;x.items=items}}
+    else{gid=D.nid++;D.groups.push({id:gid,title,items})}
+    save();closeG();renderHome();refreshGroup(gid);
   }
 });
 $('#sh').addEventListener('keydown',e=>{if(e.target.id==='oi'&&e.key==='Enter'){e.preventDefault();addOwn()}});
@@ -501,10 +504,15 @@ document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>setTab(b.datas
 setInterval(()=>{
   if(document.hidden||S.tab!=='home') return;
   const now=Date.now();
-  if(now-lastLoc>=30000){lastLoc=now;locate()}
-  D.groups.forEach(g=>{if(!GB[g.id]&&(!GT[g.id]||now-GT[g.id]>=30000))refreshGroup(g.id)});
+  if(now-lastLoc>=60000){lastLoc=now;locate()}
+  const first=ordG()[0]; /* solo el grupo más cercano se actualiza solo */
+  if(first&&!GB[first.g.id]&&(!GT[first.g.id]||now-GT[first.g.id]>=60000))refreshGroup(first.g.id);
 },1000);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.tab==='home')refreshAll()});
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden||S.tab!=='home') return;
+  const now=Date.now();
+  D.groups.forEach(g=>{if(!GB[g.id]&&(!GT[g.id]||now-GT[g.id]>=60000))refreshGroup(g.id)});
+});
 
 /* ---------- arranque ---------- */
 renderHome();
