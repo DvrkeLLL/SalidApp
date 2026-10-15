@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SalidApp</title>
+<meta name="application-name" content="SalidApp">
+<meta name="apple-mobile-web-app-title" content="SalidApp">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="SalidApp: mira en cuántos minutos pasa tu micro en tus paraderos favoritos.">
+<link rel="icon" type="image/png" href="Icono_SalidApp.png">
+<link rel="apple-touch-icon" href="Icono_SalidApp.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<style>
+:root{--bg:#f6f6f7;--card:#fff;--ink:#17181c;--mut:#767a84;--line:#ececf0;--accent:#e4002b;--go:#1d9a68;--r:16px;--navh:68px;--font:'Sora',system-ui,sans-serif;color-scheme:light}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.35}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0}
+button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.view{position:fixed;left:0;right:0;top:env(safe-area-inset-top,0px);bottom:calc(var(--navh) + env(safe-area-inset-bottom,0px));overflow:auto;display:none}
+.view.on{display:block}
+#v-map{overflow:hidden}
+.wrap{max-width:640px;margin:0 auto;padding:26px 20px 24px}
+.hd{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:20px}
+.hd small{color:var(--mut);font-size:13.5px}
+.hd h1{margin:4px 0 0;font-size:28px;font-weight:600;letter-spacing:-.02em;line-height:1.1}
+.tx{color:var(--accent);font-weight:600;font-size:15px;padding:6px 2px}
+.icon-btn{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:9px 12px;font-weight:600;font-size:14px}
+.sh1{box-shadow:0 1px 2px rgba(20,20,30,.06),0 6px 18px rgba(20,20,30,.05)}
+
+/* grupos */
+.grp,.fav,.empty-card{background:var(--card);border-radius:var(--r);margin-bottom:14px;box-shadow:0 1px 2px rgba(20,20,30,.06),0 6px 18px rgba(20,20,30,.05)}
+.grp{padding:16px 18px 8px}
+.grp header{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:4px}
+.grp h2{margin:0;font-size:15.5px;font-weight:600;line-height:1.25}
+.grp .d{color:var(--mut);font-size:12.5px;white-space:nowrap}
+.grp .d b{color:var(--accent);font-weight:600}
+.grp.ed{outline:2px dashed var(--line);cursor:pointer}
+.row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px 0}
+.row+.row{border-top:1px solid var(--line)}
+.who{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0}
+.svc{display:inline-flex;align-items:center;justify-content:center;height:32px;min-width:54px;padding:0 10px;border-radius:10px;background:var(--accent);color:#fff;font-weight:600;font-size:17px}
+.at{color:var(--mut);font-size:12px;line-height:1.2;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eta{flex:none;height:32px;font-weight:300;font-size:24px;line-height:32px;letter-spacing:-.02em;white-space:nowrap;text-align:right}
+.eta small{font-size:13px;font-weight:400;color:var(--mut);margin-right:5px;letter-spacing:0}
+.eta.go{color:var(--accent);font-weight:600}
+.eta.none{color:var(--mut);font-size:15px;font-weight:400;letter-spacing:0}
+.newg{width:100%;padding:14px;border:1.5px dashed #c9ccd3;border-radius:var(--r);color:var(--mut);font-weight:600;font-size:15px}
+.empty-card{padding:28px 20px;text-align:center}
+.empty-card h2{margin:0 0 6px;font-size:20px;font-weight:600}
+.empty-card p{margin:0 0 16px;color:var(--mut);font-size:15px}
+.empty{color:var(--mut);font-size:15px;padding:10px 0 20px}
+
+/* favoritos */
+.fav{padding:14px 16px}
+.fav h2{margin:0;font-size:16px;font-weight:600;line-height:1.2}
+.fav .cd{color:var(--mut);font-size:13px;margin:2px 0 10px}
+.fav .foot{display:flex;justify-content:space-between;align-items:flex-end;gap:8px}
+.mini{display:flex;flex-wrap:wrap;gap:6px}
+.mini span{border:1.5px solid var(--line);border-radius:8px;padding:2px 10px;font-weight:600;font-size:14px}
+.fa{display:flex;gap:4px}
+.fa button{color:var(--mut);font-size:13px;padding:4px 6px}
+
+/* botones */
+.btn{background:var(--accent);color:#fff;border-radius:var(--r);padding:12px 18px;font-weight:600;font-size:16px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--mut)}
+.btn.danger{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+
+/* mapa */
+.mapbox{position:absolute;inset:0}
+#map{position:absolute;inset:0}
+.search{position:absolute;left:12px;right:12px;top:12px;z-index:600;display:flex;gap:8px;align-items:center;background:var(--card);border-radius:var(--r);padding:6px 6px 6px 14px;box-shadow:0 4px 16px rgba(0,0,0,.12);max-width:616px;margin:0 auto}
+.search svg{flex:none;color:var(--mut)}
+.search input{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);font:inherit;font-size:15px;padding:8px 0;text-transform:uppercase}
+.search input::placeholder{text-transform:none;color:var(--mut)}
+.search button{background:var(--accent);color:#fff;border-radius:11px;padding:9px 14px;font-weight:600;font-size:14px}
+#hint{position:absolute;left:12px;right:12px;top:68px;z-index:500;background:var(--card);color:var(--mut);border-radius:12px;padding:8px 12px;font-size:13.5px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,.08);pointer-events:none;max-width:616px;margin:0 auto}
+.locate{position:absolute;left:12px;bottom:12px;z-index:500;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+#msheet{position:absolute;left:12px;right:12px;bottom:12px;z-index:1100;max-width:616px;margin:0 auto;background:var(--card);border-radius:var(--r);box-shadow:0 8px 28px rgba(0,0,0,.18);padding:16px;max-height:72%;overflow:auto;transform:translateY(125%);transition:transform .22s ease-out}
+#msheet.open{transform:none}
+h3{margin:0 0 2px;font-size:17px;font-weight:600;line-height:1.2}
+.codeline{display:flex;gap:8px;margin:10px 0}
+input.f,.codeline input,.manual input{min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:12px;padding:10px 12px;font:inherit;font-size:15px}
+.codeline input{flex:1;text-transform:uppercase}
+.msg{color:var(--mut);font-size:13px;margin:6px 0}
+.msg.bad{color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 6px}
+.chip{border:1.5px solid var(--line);background:var(--card);border-radius:10px;padding:6px 14px;font-weight:600;font-size:17px;min-width:56px}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.chip.dim{opacity:.55}
+.manual{display:flex;gap:8px;margin-top:8px}
+.manual input{width:120px;text-transform:uppercase}
+.actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.actions .btn{flex:1}
+.leaflet-container{font-family:var(--font)}
+
+/* hoja de grupo */
+#scrim{position:fixed;left:0;right:0;top:0;bottom:calc(var(--navh) + env(safe-area-inset-bottom,0px));background:rgba(20,20,30,.3);display:none;z-index:1150}
+#scrim.on{display:block}
+#sh{position:absolute;left:0;right:0;bottom:0;max-width:640px;margin:0 auto;max-height:90%;overflow:auto;background:var(--card);border-radius:22px 22px 0 0;padding:18px 18px 16px}
+.route{display:flex;align-items:stretch;gap:8px;margin-top:12px}
+.slot{flex:1;min-width:0;text-align:left;border:1.5px solid var(--line);border-radius:14px;padding:9px 12px;background:var(--bg);transition:border-color .25s,background .25s}
+.slot small{display:block;font-size:12px;color:var(--mut);font-weight:600}
+.slot b{display:block;font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot.on.a{border-color:var(--go);background:#eaf7f1}.slot.on.a small{color:var(--go)}
+.slot.on.b{border-color:var(--accent);background:#fdecef}.slot.on.b small{color:var(--accent)}
+.arr{align-self:center;color:var(--mut)}
+.slot.pop b{animation:pop .45s cubic-bezier(.3,1.6,.5,1)}
+.slot.ping.a{animation:pinga .55s ease-out}.slot.ping.b{animation:pingb .55s ease-out}
+@keyframes pop{0%{transform:translateY(16px) scale(.8);opacity:0}100%{transform:none;opacity:1}}
+@keyframes pinga{0%{box-shadow:0 0 0 0 rgba(29,154,104,.4)}100%{box-shadow:0 0 0 12px rgba(29,154,104,0)}}
+@keyframes pingb{0%{box-shadow:0 0 0 0 rgba(228,0,43,.35)}100%{box-shadow:0 0 0 12px rgba(228,0,43,0)}}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.pick{margin-top:14px}.pick.a{--c:var(--go)}.pick.b{--c:var(--accent)}
+.ask{margin:0 0 8px;font-size:14px;font-weight:600;color:var(--c)}
+.own{display:flex;gap:8px;margin-bottom:12px}
+.own input{flex:1;min-width:0}
+.chip.cp{border-color:var(--c);color:var(--c);padding:5px 12px;font-size:14px;min-width:0}
+.chip.cp.cur{background:var(--c);color:#fff}
+.fade{animation:fadein .35s ease-out}
+.fs{margin-top:12px}
+.fn{display:flex;justify-content:space-between;gap:8px;font-size:14px;font-weight:600;margin-bottom:2px}
+.fn span{color:var(--mut);font-weight:400;font-size:12.5px}
+#sh .btn{width:100%;margin-top:14px}
+#sh .btn.ghost,#sh .btn.danger{margin-top:6px}
+
+/* barra inferior */
+.nav{position:fixed;left:0;right:0;bottom:0;height:calc(var(--navh) + env(safe-area-inset-bottom,0px));padding-bottom:env(safe-area-inset-bottom,0px);display:grid;grid-template-columns:repeat(3,1fr);
+  background:rgba(255,255,255,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);z-index:1200;color:#a2a6af}
+.nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12px;font-weight:600;position:relative}
+.nav svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav button[aria-current=page]{color:var(--accent)}
+.nav button[aria-current=page]::after{content:"";position:absolute;top:7px;width:5px;height:5px;border-radius:50%;background:var(--accent)}
+@media (prefers-reduced-motion:reduce){#msheet{transition:none}.slot,.slot b,.fade{animation:none!important}}
+</style>
+</head>
+<body>
+
+<main class="view on" id="v-home"><div id="home"></div></main>
+<section class="view" id="v-fav"><div id="favc"></div></section>
+<section class="view" id="v-map">
+  <div class="mapbox">
+    <div id="map"></div>
+    <div class="search">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input id="qcode" placeholder="Buscar por código (ej. PA433)" autocomplete="off" aria-label="Código de paradero">
+      <button id="qgo">Buscar</button>
+    </div>
+    <div id="hint">Acerca el mapa para ver los paraderos</div>
+    <button class="icon-btn locate" id="locate">Mi ubicación</button>
+    <div id="msheet" role="dialog" aria-live="polite"></div>
+  </div>
+</section>
+<div id="scrim"><div id="sh" role="dialog"></div></div>
+
+<nav class="nav" aria-label="Principal">
+  <button data-t="home" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7.5 9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5.5h4V20"/></svg>Inicio</button>
+  <button data-t="fav" aria-current="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9 6.8 19.7l1-5.9L3.5 9.7l5.9-.8z"/></svg>Favoritos</button>
+  <button data-t="map" aria-current="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg>Mapa</button>
+</nav>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+(function(){
+'use strict';
+const KEY='paradero-v2', OLD='paradero-home-v1';
+const API='https://api.xor.cl/red/bus-stop/';
+const OVERPASS=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
+const PLACES=['Casa','Trabajo','Universidad','Colegio','Gimnasio','Metro','Centro','Familia'];
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num=(a,b)=>String(a).localeCompare(String(b),'es',{numeric:true});
+
+/* ---------- datos guardados ---------- */
+let D=load();
+function load(){
+  try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&Array.isArray(s.favs))return{favs:s.favs,groups:s.groups||[],places:s.places||[],nid:s.nid||1}}catch(e){}
+  const d={favs:[],groups:[],places:[],nid:1};
+  try{const o=JSON.parse(localStorage.getItem(OLD));
+    if(o&&Array.isArray(o.stops))d.favs=o.stops.map(s=>({code:s.code,name:s.name||'',lat:s.lat??null,lng:s.lng??null,services:(s.services||[]).map(String)}))}catch(e){}
+  return d;
+}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}};
+const fav=c=>D.favs.find(f=>f.code===c);
+const allPlaces=()=>[...PLACES,...D.places];
+function cleanGroups(){
+  D.groups.forEach(g=>g.items=g.items.filter(([c,s])=>{const f=fav(c);return f&&f.services.includes(s)}));
+  D.groups=D.groups.filter(g=>g.items.length);
+}
+
+/* ---------- estado ---------- */
+const S={tab:'home',edit:false,here:null,gs:null,ms:null,flash:''};
+const arrivals={}; let lastUpdate=null;
+
+/* ---------- API ---------- */
+async function fetchStop(code){
+  const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),12000);
+  try{const r=await fetch(API+encodeURIComponent(code),{signal:ctl.signal});if(!r.ok)throw new Error('HTTP '+r.status);return await r.json()}
+  finally{clearTimeout(t)}
+}
+
+/* ---------- distancia ---------- */
+function dist(code){
+  const f=fav(code); if(!S.here||!f||f.lat==null||f.lng==null) return null;
+  const R=6371000,rad=x=>x*Math.PI/180,dl=rad(f.lat-S.here.lat),dg=rad(f.lng-S.here.lng);
+  const a=Math.sin(dl/2)**2+Math.cos(rad(S.here.lat))*Math.cos(rad(f.lat))*Math.sin(dg/2)**2;
+  return Math.round(2*R*Math.asin(Math.sqrt(a)));
+}
+const fmt=m=>m<1000?`${m} m`:`${(m/1000).toFixed(1).replace('.',',')} km`;
+function gDist(g){
+  const ds=[...new Set(g.items.map(i=>i[0]))].map(dist).filter(x=>x!=null);
+  return ds.length?ds.reduce((a,b)=>a+b,0)/ds.length:null;
+}
+function locate(cb){
+  if(!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(p=>{S.here={lat:p.coords.latitude,lng:p.coords.longitude};if(cb)cb();else rerender()},()=>{},{timeout:8000,maximumAge:60000});
+}
+function rerender(){if(S.tab==='home')renderHome();else if(S.tab==='fav')renderFav()}
+
+/* ---------- tiempos ---------- */
+function etaOf(c,s){
+  const d=arrivals[c]?.data, sv=d?.services?.find(x=>String(x.id).toUpperCase()===s), b=sv?.buses?.[0];
+  if(b){
+    const mn=b.min_arrival_time,mx=b.max_arrival_time;
+    if(mn!=null||mx!=null){
+      const lo=mn??mx,hi=mx??mn;
+      if(hi<=1) return{lo:0,h:'<div class="eta go">Llegando</div>'};
+      return{lo,h:`<div class="eta"><small>en</small>${lo===hi?lo:lo+'–'+hi} min</div>`};
+    }
+  }
+  return{lo:1e9,h:`<div class="eta none">${!arrivals[c]?'…':(d?'Sin micros':'—')}</div>`};
+}
+
+/* ---------- Inicio ---------- */
+function renderHome(){
+  let h=`<div class="wrap"><div class="hd"><div><small>${lastUpdate?'Actualizado '+lastUpdate.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'Consultando…'}</small><h1>Mis micros</h1></div>${D.groups.length?`<button class="tx" id="ed">${S.edit?'Listo':'Editar'}</button>`:''}</div>`;
+  if(!D.favs.length){
+    h+=`<div class="empty-card"><h2>Aún no tienes paraderos</h2><p>Toca un paradero en el mapa y guárdalo en favoritos. Después arma aquí tus grupos de micros.</p><button class="btn" data-go="map">Ir al mapa</button></div>`;
+  }else{
+    const gs=D.groups.map((g,i)=>({g,i,d:gDist(g)})).sort((a,b)=>(a.d??Infinity)-(b.d??Infinity)||a.i-b.i);
+    if(!gs.length) h+='<p class="empty">Crea tu primer grupo con micros de tus paraderos favoritos.</p>';
+    h+=gs.map(({g,d},i)=>{
+      const rows=g.items.map(([c,s])=>({c,s,e:etaOf(c,s)})).sort((a,b)=>a.e.lo-b.e.lo);
+      const dl=d==null?'':(i===0&&gs.length>1?'<b>Más cercano</b> · ':'')+'a '+fmt(Math.round(d));
+      return `<article class="grp${S.edit?' ed':''}" data-g="${g.id}"><header><h2>${esc(g.title)}</h2><span class="d">${S.edit?'Editar ›':dl}</span></header>
+        ${rows.map(r=>`<div class="row"><div class="who"><span class="svc">${esc(r.s)}</span><span class="at">${esc(fav(r.c)?.name||r.c)}</span></div>${r.e.h}</div>`).join('')}</article>`;
+    }).join('');
+    h+='<button class="newg" id="ng">+ Nuevo grupo</button>';
+  }
+  $('#home').innerHTML=h+'</div>';
+}
+
+async function refreshAll(){
+  locate();
+  const codes=[...new Set(D.groups.flatMap(g=>g.items.map(i=>i[0])))];
+  await Promise.all(codes.map(async c=>{
+    try{
+      const data=await fetchStop(c); arrivals[c]={data};
+      const f=fav(c); if(f&&data.name&&f.name!==data.name){f.name=data.name;save()}
+    }catch(e){arrivals[c]={...(arrivals[c]||{}),err:true}}
+  }));
+  lastUpdate=new Date(); if(S.tab==='home') renderHome();
+}
+
+$('#home').addEventListener('click',e=>{
+  const t=e.target;
+  if(t.id==='ed'){S.edit=!S.edit;return renderHome()}
+  if(t.id==='ng') return openG(0);
+  if(t.dataset.go) return setTab(t.dataset.go);
+  const card=t.closest('.grp'); if(card&&S.edit) openG(+card.dataset.g);
+});
+
+/* ---------- Favoritos ---------- */
+function renderFav(){
+  const fs=[...D.favs].sort((a,b)=>(dist(a.code)??Infinity)-(dist(b.code)??Infinity));
+  $('#favc').innerHTML=`<div class="wrap"><div class="hd"><div><small>Guardados desde el mapa</small><h1>Favoritos</h1></div></div>`
+  +(fs.length?'':'<p class="empty">Toca un paradero en el mapa y guárdalo para verlo aquí.</p>')
+  +fs.map(f=>{const d=dist(f.code);return `<article class="fav"><h2>${esc(f.name||'Paradero')}</h2><div class="cd">${esc(f.code)}${d!=null?' · a '+fmt(d):''}</div>
+    <div class="foot"><div class="mini">${f.services.map(s=>`<span>${esc(s)}</span>`).join('')}</div>
+    <div class="fa"><button data-fe="${esc(f.code)}">Editar</button><button data-rm="${esc(f.code)}">Quitar</button></div></div></article>`}).join('')+'</div>';
+}
+$('#favc').addEventListener('click',e=>{
+  const t=e.target;
+  if(t.dataset.rm){D.favs=D.favs.filter(f=>f.code!==t.dataset.rm);cleanGroups();save();return renderFav()}
+  if(t.dataset.fe){const f=fav(t.dataset.fe);mapInit=true;setTab('map');setTimeout(()=>{if(f.lat!=null)map.setView([f.lat,f.lng],17)},120);openMS(f)}
+});
+
+/* ---------- Mapa ---------- */
+let map=null,layer=null,mapInit=false,markers=new Map(),selMarker=null,loadTimer=null;
+const ST={fav:{fillColor:'#e4002b',color:'#fff',weight:3,fillOpacity:1,radius:10},
+  stop:{fillColor:'#8a8f99',color:'#fff',weight:3,fillOpacity:1,radius:9},
+  none:{fillColor:'#c4c7ce',color:'#fff',weight:2,fillOpacity:.95,radius:7},
+  sel:{fillColor:'#17181c',color:'#fff',weight:3,fillOpacity:1,radius:12}};
+const baseStyle=m=>m.code?(fav(m.code)?ST.fav:ST.stop):ST.none;
+const restyle=()=>markers.forEach(m=>{if(m!==selMarker)m.setStyle(baseStyle(m.meta))});
+
+function initMap(){
+  if(map) return;
+  map=L.map('map',{zoomControl:false}).setView([-33.4489,-70.6693],15);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  layer=L.layerGroup().addTo(map);
+  map.on('moveend',()=>{clearTimeout(loadTimer);loadTimer=setTimeout(loadStops,350)});
+}
+function locateMap(){
+  if(!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(p=>{S.here={lat:p.coords.latitude,lng:p.coords.longitude};map.setView([S.here.lat,S.here.lng],17)},()=>{},{timeout:8000});
+}
+$('#locate').onclick=locateMap;
+
+function extractCode(tags){
+  const re=/\bP[A-Z]\d{1,5}\b/i;
+  for(const k of ['ref','ref:red','ref:transantiago','ref:cl','official_ref','local_ref','name']){const m=tags[k]&&String(tags[k]).match(re);if(m)return m[0].toUpperCase()}
+  for(const v of Object.values(tags)){const m=String(v).match(re);if(m)return m[0].toUpperCase()}
+  return null;
+}
+async function loadStops(){
+  const hint=$('#hint');
+  if(map.getZoom()<16){hint.style.display='block';hint.textContent='Acerca el mapa para ver los paraderos';return}
+  const b=map.getBounds();
+  const q=`[out:json][timeout:25];node["highway"="bus_stop"](${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()});out body 500;`;
+  hint.style.display='block';hint.textContent='Buscando paraderos…';
+  let json=null;
+  for(const url of OVERPASS){
+    try{const r=await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});if(r.ok){json=await r.json();break}}catch(e){}
+  }
+  if(!json){hint.textContent='No se pudieron cargar los paraderos. Usa el buscador por código.';return}
+  json.elements.forEach(el=>{
+    if(markers.has(el.id)) return;
+    const code=extractCode(el.tags||{});
+    const m=L.circleMarker([el.lat,el.lon],code?(fav(code)?ST.fav:ST.stop):ST.none).addTo(layer);
+    m.meta={code,name:el.tags?.name||'',lat:el.lat,lng:el.lon};
+    m.on('click',()=>{
+      if(selMarker) selMarker.setStyle(baseStyle(selMarker.meta));
+      selMarker=m;m.setStyle(ST.sel);m.bringToFront();
+      openMS(fav(m.meta.code)||{code:m.meta.code||'',name:m.meta.name,lat:m.meta.lat,lng:m.meta.lng,services:[]});
+    });
+    markers.set(el.id,m);
+  });
+  hint.style.display='none';
+}
+
+/* hoja del paradero */
+function openMS(st){
+  S.ms={code:st.code||'',name:st.name||'',lat:st.lat??null,lng:st.lng??null,set:new Set((st.services||[]).map(String)),available:[],status:'idle'};
+  S.flash='';renderMS();
+  if(S.ms.code) lookup();
+}
+function closeMS(){S.ms=null;if(selMarker){selMarker.setStyle(baseStyle(selMarker.meta));selMarker=null}renderMS()}
+async function lookup(){
+  const m=S.ms,code=m.code.trim().toUpperCase(); if(!code) return;
+  m.code=code;m.status='loading';renderMS();
+  try{
+    const d=await fetchStop(code); if(S.ms!==m||m.code!==code) return;
+    if(d.name) m.name=d.name;
+    m.available=(d.services||[]).map(s=>({id:String(s.id).toUpperCase(),valid:s.valid!==false}));
+    m.status=m.available.length?'ok':'empty';
+  }catch(e){if(S.ms===m&&m.code===code)m.status='error'}
+  if(S.ms===m) renderMS();
+}
+function renderMS(){
+  const m=S.ms,el=$('#msheet');
+  if(!m){el.classList.remove('open');return}
+  const ids=[...new Set([...m.available.map(s=>s.id),...m.set])].sort(num);
+  const dim=id=>{const s=m.available.find(x=>x.id===id);return s&&!s.valid};
+  const isF=!!fav(m.code);
+  let msg='';
+  if(!m.code) msg='<p class="msg">Este paradero no tiene código en el mapa. Escríbelo abajo: está en el letrero del paradero.</p>';
+  else if(m.status==='loading') msg='<p class="msg">Buscando micros…</p>';
+  else if(m.status==='error') msg='<p class="msg bad">No pude consultar ese código. Revisa que esté bien escrito y tu conexión.</p>';
+  else if(m.status==='empty') msg='<p class="msg">No hay micros informadas ahora (puede ser de noche). Puedes agregarlas a mano.</p>';
+  else if(m.status==='ok') msg='<p class="msg">Toca las micros que quieres guardar.</p>';
+  el.innerHTML=`<h3>${esc(m.name||'Paradero')}</h3>
+    <div class="codeline"><input id="mcode" value="${esc(m.code)}" placeholder="Código (ej. PA433)" autocomplete="off" aria-label="Código del paradero"><button class="icon-btn" id="mgo">Buscar micros</button></div>
+    ${msg}<div class="chips">${ids.map(id=>`<button class="chip ${dim(id)?'dim':''}" data-id="${esc(id)}" aria-pressed="${m.set.has(id)}">${esc(id)}</button>`).join('')}</div>
+    ${m.code?'<div class="manual"><input id="mman" placeholder="Otra micro" aria-label="Agregar micro a mano"><button class="icon-btn" id="madd">Agregar</button></div>':''}
+    <div class="actions"><button class="btn" id="msave" ${m.set.size&&m.code?'':'disabled'}>${isF?'Actualizar favorito':'Guardar en favoritos'}</button>
+    ${isF?'<button class="btn danger" id="mdel">Quitar</button>':'<button class="btn ghost" id="mcancel">Cancelar</button>'}</div>
+    ${S.flash?`<p class="msg">${esc(S.flash)}</p>`:''}`;
+  el.classList.add('open');
+}
+$('#msheet').addEventListener('click',e=>{
+  const t=e.target,m=S.ms; if(!m) return;
+  if(t.id==='mgo'){m.code=$('#mcode').value.trim().toUpperCase();return lookup()}
+  const c=t.closest('.chip'); if(c){const id=c.dataset.id;m.set.has(id)?m.set.delete(id):m.set.add(id);S.flash='';return renderMS()}
+  if(t.id==='madd'){const v=($('#mman').value||'').trim().toUpperCase();if(v){m.set.add(v);S.flash='';renderMS()}return}
+  if(t.id==='msave'){
+    const code=($('#mcode').value||m.code).trim().toUpperCase(); if(!code||!m.set.size) return;
+    const rec={code,name:m.name,lat:m.lat,lng:m.lng,services:[...m.set].sort(num)};
+    const i=D.favs.findIndex(f=>f.code===code); i>=0?D.favs[i]=rec:D.favs.push(rec);
+    m.code=code;cleanGroups();save();restyle();S.flash='Guardado en favoritos';return renderMS();
+  }
+  if(t.id==='mdel'){D.favs=D.favs.filter(f=>f.code!==m.code);cleanGroups();save();restyle();S.flash='Quitado de favoritos';return renderMS()}
+  if(t.id==='mcancel') closeMS();
+});
+$('#msheet').addEventListener('input',e=>{if(e.target.id==='mcode'&&S.ms)S.ms.code=e.target.value.toUpperCase()});
+$('#msheet').addEventListener('keydown',e=>{
+  if(e.key!=='Enter') return;
+  if(e.target.id==='mcode'){S.ms.code=e.target.value.trim().toUpperCase();lookup()}
+  if(e.target.id==='mman')$('#madd').click();
+});
+$('#qgo').onclick=()=>{const v=$('#qcode').value.trim().toUpperCase();if(v)openMS({code:v})};
+$('#qcode').addEventListener('keydown',e=>{if(e.key==='Enter')$('#qgo').click()});
+
+/* ---------- Grupos: hoja de edición ---------- */
+const act=g=>g.edit||(!g.a?'a':!g.b?'b':null);
+const canSave=g=>g.set.size>0&&g.a&&g.b;
+function sheetG(){
+  const g=S.gs,scrim=$('#scrim');
+  if(!g){scrim.classList.remove('on');return}
+  scrim.classList.add('on');
+  const k=act(g),other=k==='a'?g.b:k==='b'?g.a:'';
+  const fs=[...D.favs].sort((a,b)=>(dist(a.code)??Infinity)-(dist(b.code)??Infinity));
+  const slot=(key,label)=>`<button class="slot ${k===key?'on '+key:''}${g.pop&&k===key?' ping':''}${g.pop===key?' pop':''}" data-slot="${key}"><small>${label}</small><b>${g[key]?esc(g[key]):'—'}</b></button>`;
+  $('#sh').innerHTML=`<h3>${g.id?'Editar grupo':'Nuevo grupo'}</h3>
+   <div class="route">${slot('a','Desde')}<span class="arr">→</span>${slot('b','Hasta')}</div>
+   ${k?`<div class="pick ${k}"><p class="ask">${k==='a'?'¿Desde dónde sales?':'¿A dónde vas?'}</p>
+     <div class="own"><input class="f" id="oi" placeholder="Escribir otro lugar" maxlength="20" aria-label="Otro lugar"><button class="icon-btn" id="oadd">Usar</button></div>
+     <div class="chips fade" style="margin-top:0">${allPlaces().filter(p=>p.toLowerCase()!==other.toLowerCase()).map(p=>`<button class="chip cp${p===g[k]?' cur':''}" data-pl="${esc(p)}">${esc(p)}</button>`).join('')}</div></div>`
+     :'<p class="msg" style="margin-top:10px">Toca Desde o Hasta para cambiarlos.</p>'}
+   <p class="msg" style="margin-top:16px">Marca micros de tus paraderos favoritos. Sirve cualquiera para llegar a tu destino.</p>
+   ${fs.length?fs.map(f=>{const d=dist(f.code);return `<div class="fs"><div class="fn">${esc(f.name||f.code)}<span>${d!=null?'a '+fmt(d):esc(f.code)}</span></div>
+     <div class="chips" style="margin-top:4px">${f.services.map(s=>`<button class="chip" data-gk="${esc(f.code)}|${esc(s)}" aria-pressed="${g.set.has(f.code+'|'+s)}">${esc(s)}</button>`).join('')}</div></div>`}).join('')
+     :'<p class="msg">Primero guarda paraderos desde el mapa.</p>'}
+   <button class="btn" id="gsave">Guardar grupo</button>
+   ${g.id?'<button class="btn danger" id="gdel">Eliminar grupo</button>':''}<button class="btn ghost" id="gcancel">Cancelar</button>`;
+  g.pop=null;
+  $('#gsave').disabled=!canSave(g);
+}
+function pick(v){const g=S.gs,k=act(g);g[k]=v;g.edit=null;g.pop=k;sheetG()}
+function addOwn(){
+  const g=S.gs,i=$('#oi'),v=i.value.trim(),k=act(g),other=(k==='a'?g.b:g.a)||'';
+  if(!v||v.toLowerCase()===other.toLowerCase()){i.focus();return}
+  const ex=allPlaces().find(p=>p.toLowerCase()===v.toLowerCase());
+  if(!ex){D.places.push(v);save()}
+  pick(ex||v);
+}
+function openG(id){
+  const g=D.groups.find(x=>x.id===id);
+  let a='',b='';
+  if(g){[a,b]=g.title.split(' → ');a=a||'';b=b||''}
+  S.gs={id:id||0,a,b,edit:null,pop:null,set:new Set(g?g.items.map(i=>i.join('|')):[])};
+  sheetG();
+}
+function closeG(){S.gs=null;sheetG()}
+$('#scrim').addEventListener('click',e=>{if(e.target.id==='scrim')closeG()});
+$('#sh').addEventListener('click',e=>{
+  const t=e.target,g=S.gs; if(!g) return;
+  const sl=t.closest('[data-slot]'); if(sl){g.edit=sl.dataset.slot;return sheetG()}
+  const pl=t.closest('[data-pl]'); if(pl) return pick(pl.dataset.pl);
+  if(t.id==='oadd') return addOwn();
+  const k=t.closest('[data-gk]');
+  if(k){const v=k.dataset.gk;g.set.has(v)?g.set.delete(v):g.set.add(v);return sheetG()}
+  if(t.id==='gcancel') return closeG();
+  if(t.id==='gdel'){D.groups=D.groups.filter(x=>x.id!==g.id);save();closeG();return renderHome()}
+  if(t.id==='gsave'&&canSave(g)){
+    const items=[...g.set].map(v=>{const i=v.indexOf('|');return[v.slice(0,i),v.slice(i+1)]}),title=`${g.a} → ${g.b}`;
+    if(g.id){const x=D.groups.find(y=>y.id===g.id);if(x){x.title=title;x.items=items}}
+    else D.groups.push({id:D.nid++,title,items});
+    save();closeG();renderHome();refreshAll();
+  }
+});
+$('#sh').addEventListener('keydown',e=>{if(e.target.id==='oi'&&e.key==='Enter'){e.preventDefault();addOwn()}});
+
+/* ---------- navegación ---------- */
+function setTab(t){
+  S.tab=t;S.gs=null;sheetG();
+  $('#v-home').classList.toggle('on',t==='home');
+  $('#v-fav').classList.toggle('on',t==='fav');
+  $('#v-map').classList.toggle('on',t==='map');
+  document.querySelectorAll('.nav button').forEach(b=>b.setAttribute('aria-current',b.dataset.t===t?'page':'false'));
+  if(t==='home'){renderHome();refreshAll()}
+  if(t==='fav') renderFav();
+  if(t==='map'){
+    initMap();
+    setTimeout(()=>{map.invalidateSize();if(!mapInit){mapInit=true;locateMap()}loadStops()},60);
+  }
+}
+document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>setTab(b.dataset.t));
+setInterval(()=>{if(!document.hidden&&S.tab==='home'&&!S.gs)refreshAll()},30000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.tab==='home')refreshAll()});
+
+/* ---------- arranque ---------- */
+renderHome();
+refreshAll();
+})();
+</script>
+</body>
+</html>
