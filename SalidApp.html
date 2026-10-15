@@ -16,19 +16,19 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
 <style>
-:root{--bg:#f6f6f7;--card:#fff;--ink:#17181c;--mut:#767a84;--line:#ececf0;--accent:#e4002b;--go:#1d9a68;--r:16px;--navh:68px;--font:'Sora',system-ui,sans-serif;color-scheme:light}
+:root{--bg:#f6f6f7;--card:#fff;--ink:#17181c;--mut:#767a84;--line:#ececf0;--accent:#e4002b;--go:#1d9a68;--r:16px;--navh:68px;--toph:55px;--font:'Sora',system-ui,sans-serif;color-scheme:light}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.35}
 button{font:inherit;color:inherit;cursor:pointer;background:none;border:0}
 button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-.view{position:fixed;left:0;right:0;top:env(safe-area-inset-top,0px);bottom:calc(var(--navh) + env(safe-area-inset-bottom,0px));overflow:auto;display:none}
+.view{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + var(--toph));bottom:calc(var(--navh) + env(safe-area-inset-bottom,0px));overflow:auto;display:none}
 .view.on{display:block}
 #v-map{overflow:hidden}
-.wrap{max-width:640px;margin:0 auto;padding:26px 20px 24px}
+.wrap{max-width:640px;margin:0 auto;padding:8px 20px 24px}
 .hd{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:20px}
 .hd small{color:var(--mut);font-size:13.5px}
 .hd h1{margin:4px 0 0;font-size:28px;font-weight:600;letter-spacing:-.02em;line-height:1.1}
@@ -36,13 +36,24 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .icon-btn{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:9px 12px;font-weight:600;font-size:14px}
 .sh1{box-shadow:0 1px 2px rgba(20,20,30,.06),0 6px 18px rgba(20,20,30,.05)}
 
+/* encabezado */
+.top{position:fixed;left:0;right:0;top:0;z-index:900;height:calc(env(safe-area-inset-top,0px) + var(--toph));padding:calc(env(safe-area-inset-top,0px) + 20px) 20px 12px;background:var(--bg)}
+.top .in{max-width:640px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.top h1{font-size:23px;font-weight:700;margin:0;display:flex;align-items:center}
+.title-app{line-height:1}
+.title-sep{display:inline-block;width:2px;height:18px;background:var(--ink);margin:0 0 0 8px;flex-shrink:0}
+.title-wrap{box-sizing:border-box;display:inline-block;overflow:hidden;width:44px;padding-left:8px;height:1em;line-height:1}
+.title-section{display:inline-block;white-space:nowrap;color:var(--accent);line-height:1}
+
 /* grupos */
 .grp,.fav,.empty-card{background:var(--card);border-radius:var(--r);margin-bottom:14px;box-shadow:0 1px 2px rgba(20,20,30,.06),0 6px 18px rgba(20,20,30,.05)}
 .grp{position:relative;overflow:hidden;padding:16px 18px 8px}
-.grp header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:4px}
-.hr{display:flex;align-items:center;gap:10px;flex:none}
-.grp h2{margin:0;font-size:15.5px;font-weight:600;line-height:1.25}
-.grp .d{color:var(--mut);font-size:12.5px;white-space:nowrap}
+.grp header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:4px}
+.hr{display:flex;align-items:flex-start;gap:10px;flex:none}
+.rc{display:flex;flex-direction:column;align-items:center;gap:3px}
+.ut{font-size:11px;line-height:1;color:var(--mut);font-variant-numeric:tabular-nums}
+.grp h2{margin:0;padding-top:6px;font-size:15.5px;font-weight:600;line-height:1.25}
+.grp .d{color:var(--mut);font-size:12.5px;white-space:nowrap;padding-top:7px;line-height:1.25}
 .grp .d b{color:var(--accent);font-weight:600}
 .grp.ed{outline:2px dashed var(--line);cursor:pointer}
 .rf{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:var(--mut);border:1px solid var(--line);background:var(--card)}
@@ -153,6 +164,8 @@ input.f,.codeline input,.manual input{min-width:0;border:1px solid var(--line);b
 </head>
 <body>
 
+<header class="top"><div class="in"><h1><span class="title-app">SalidApp</span><span class="title-sep"></span><span class="title-wrap" id="titleWrap"><span class="title-section" id="titleSection">Inicio</span></span></h1><button class="tx" id="ed" hidden>Editar</button></div></header>
+
 <main class="view on" id="v-home"><div id="home"></div></main>
 <section class="view" id="v-fav"><div id="favc"></div></section>
 <section class="view" id="v-map">
@@ -250,10 +263,11 @@ function etaOf(c,s){
 }
 
 /* ---------- Inicio ---------- */
+const hhmm=t=>{if(!t)return'--:--';const d=new Date(t);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
 function ordG(){return D.groups.map((g,i)=>({g,i,d:gDist(g)})).sort((a,b)=>(a.d??Infinity)-(b.d??Infinity)||a.i-b.i)}
 
 function renderHome(){
-  let h=`<div class="wrap"><div class="hd"><div><small>${lastUpdate?'Actualizado '+lastUpdate.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):(D.groups.length?'Consultando…':'')}</small><h1>Mis micros</h1></div>${D.groups.length?`<button class="tx" id="ed">${S.edit?'Listo':'Editar'}</button>`:''}</div>`;
+  let h='<div class="wrap">';
   if(!D.favs.length){
     h+=`<div class="empty-card"><h2>Aún no tienes paraderos</h2><p>Toca un paradero en el mapa y guárdalo en favoritos. Después arma aquí tus grupos de micros.</p><button class="btn" data-go="map">Ir al mapa</button></div>`;
   }else{
@@ -262,12 +276,13 @@ function renderHome(){
     h+=gs.map(({g,d},i)=>{
       const rows=g.items.map(([c,s])=>({c,s,e:etaOf(c,s)})).sort((a,b)=>a.e.lo-b.e.lo);
       const dl=d==null?'':(i===0&&gs.length>1?'<b>Más cercano</b> · ':'')+'a '+fmt(Math.round(d));
-      return `<article class="grp${S.edit?' ed':''}" data-g="${g.id}"><header><h2>${esc(g.title)}</h2><div class="hr"><span class="d">${S.edit?'Editar ›':dl}</span>${S.edit?'':`<button class="rf${GB[g.id]?' spin':''}" data-rf="${g.id}" aria-label="Actualizar ${esc(g.title)}"${GB[g.id]?' disabled':''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 11-2.6-5.9"/><path d="M20 4v5h-5"/></svg></button>`}</div></header>
+      return `<article class="grp${S.edit?' ed':''}" data-g="${g.id}"><header><h2>${esc(g.title)}</h2><div class="hr"><span class="d">${S.edit?'Editar ›':dl}</span>${S.edit?'':`<div class="rc"><button class="rf${GB[g.id]?' spin':''}" data-rf="${g.id}" aria-label="Actualizar ${esc(g.title)}"${GB[g.id]?' disabled':''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 11-2.6-5.9"/><path d="M20 4v5h-5"/></svg></button><span class="ut">${hhmm(GT[g.id])}</span></div>`}</div></header>
         ${rows.map(r=>`<div class="row"><div class="who"><span class="svc">${esc(r.s)}</span><span class="at">${esc(fav(r.c)?.name||r.c)}</span></div>${r.e.h}</div>`).join('')}${i===0?`<div class="bar" style="animation-delay:-${GT[g.id]?Math.min(60,(Date.now()-GT[g.id])/1000).toFixed(2):0}s"></div>`:''}</article>`;
     }).join('');
     h+='<button class="newg" id="ng">+ Nuevo grupo</button>';
   }
   $('#home').innerHTML=h+'</div>';
+  const eb=$('#ed'); eb.hidden=!D.groups.length; eb.textContent=S.edit?'Listo':'Editar';
 }
 
 async function refreshGroup(id){
@@ -288,7 +303,6 @@ function refreshAll(){locate();return Promise.all(D.groups.map(g=>refreshGroup(g
 $('#home').addEventListener('click',e=>{
   const t=e.target;
   const rf=t.closest('[data-rf]'); if(rf) return refreshGroup(+rf.dataset.rf);
-  if(t.id==='ed'){S.edit=!S.edit;return renderHome()}
   if(t.id==='ng') return openG(0);
   if(t.dataset.go) return setTab(t.dataset.go);
   const card=t.closest('.grp'); if(card&&S.edit) openG(+card.dataset.g);
@@ -297,7 +311,7 @@ $('#home').addEventListener('click',e=>{
 /* ---------- Favoritos ---------- */
 function renderFav(){
   const fs=[...D.favs].sort((a,b)=>(dist(a.code)??Infinity)-(dist(b.code)??Infinity));
-  $('#favc').innerHTML=`<div class="wrap"><div class="hd"><div><small>Guardados desde el mapa</small><h1>Favoritos</h1></div></div>`
+  $('#favc').innerHTML=`<div class="wrap">`
   +(fs.length?'':'<p class="empty">Toca un paradero en el mapa y guárdalo para verlo aquí.</p>')
   +fs.map(f=>{const d=dist(f.code);return `<article class="fav"><h2>${esc(f.name||'Paradero')}</h2><div class="cd">${esc(f.code)}${d!=null?' · a '+fmt(d):''}</div>
     <div class="foot"><div class="mini">${f.services.map(s=>`<span>${esc(s)}</span>`).join('')}</div>
@@ -487,8 +501,51 @@ $('#sh').addEventListener('click',e=>{
 $('#sh').addEventListener('keydown',e=>{if(e.target.id==='oi'&&e.key==='Enter'){e.preventDefault();addOwn()}});
 
 /* ---------- navegación ---------- */
+const SEC={home:'Inicio',fav:'Favoritos',map:'Mapa'};
+/* título animado: "SalidApp | sección" (mismo efecto que RamOS) */
+const _cv=document.createElement('canvas'); let _cx=null; try{_cx=_cv.getContext&&_cv.getContext('2d')}catch(e){}
+function medirAnchoTitulo(text){
+  if(!_cx) return text.length*14;
+  const cs=getComputedStyle($('#titleSection'));
+  _cx.font=`${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  return Math.ceil(_cx.measureText(text).width);
+}
+function medirAltoMayuscula(){
+  if(!_cx) return 17;
+  const cs=getComputedStyle($('#titleSection'));
+  _cx.font=`${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  const m=_cx.measureText('H');
+  return Math.ceil(m.actualBoundingBoxAscent+m.actualBoundingBoxDescent);
+}
+function initTitle(){
+  $('#titleWrap').style.width=(medirAnchoTitulo($('#titleSection').textContent)+8+3)+'px';
+  $('.title-sep').style.height=medirAltoMayuscula()+'px';
+}
+let titleTimer=null;
+const TITLE_EXTRA_TRAVEL=40;
+function setTitleSection(text){
+  const el=$('#titleSection'),wrap=$('#titleWrap');
+  clearTimeout(titleTimer);
+  el.style.transition='transform .28s ease';
+  el.style.transform=`translateX(calc(-100% - ${TITLE_EXTRA_TRAVEL}px))`;
+  titleTimer=setTimeout(()=>{
+    el.textContent=text;
+    wrap.style.width=(medirAnchoTitulo(text)+8+3)+'px';
+    el.style.transition='none';
+    el.style.transform=`translateX(calc(-100% - ${TITLE_EXTRA_TRAVEL}px))`;
+    void el.offsetWidth;
+    el.style.transition='transform .28s ease';
+    el.style.transform='translateX(0)';
+  },280);
+}
 function setTab(t){
+  const changed=S.tab!==t;
   S.tab=t;S.gs=null;sheetG();
+  if(changed){
+    S.edit=false;
+    setTitleSection(SEC[t]);
+    $('#ed').hidden=t!=='home'||!D.groups.length;$('#ed').textContent='Editar';
+  }
   $('#v-home').classList.toggle('on',t==='home');
   $('#v-fav').classList.toggle('on',t==='fav');
   $('#v-map').classList.toggle('on',t==='map');
@@ -513,6 +570,10 @@ document.addEventListener('visibilitychange',()=>{
   const now=Date.now();
   D.groups.forEach(g=>{if(!GB[g.id]&&(!GT[g.id]||now-GT[g.id]>=60000))refreshGroup(g.id)});
 });
+
+$('#ed').onclick=()=>{S.edit=!S.edit;renderHome()};
+initTitle();
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(initTitle);
 
 /* ---------- arranque ---------- */
 renderHome();
