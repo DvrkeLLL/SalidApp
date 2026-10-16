@@ -27,6 +27,7 @@ button{font:inherit;color:inherit;cursor:pointer;background:none;border:0}
 button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .view{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + var(--toph));bottom:calc(var(--navh) + env(safe-area-inset-bottom,0px));overflow:auto;display:none}
 .view.on{display:block}
+.view{overscroll-behavior:contain}
 #v-map{overflow:hidden}
 .wrap{max-width:640px;margin:0 auto;padding:8px 20px 24px}
 .hd{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:20px}
@@ -44,6 +45,12 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .title-sep{display:inline-block;width:2px;height:18px;background:var(--ink);margin:0 0 0 8px;flex-shrink:0}
 .title-wrap{box-sizing:border-box;display:inline-block;overflow:hidden;width:44px;padding-left:8px;height:1em;line-height:1}
 .title-section{display:inline-block;white-space:nowrap;color:var(--accent);line-height:1}
+
+#ptr{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + var(--toph));width:38px;height:38px;margin-left:-19px;border-radius:50%;background:var(--card);box-shadow:0 4px 14px rgba(0,0,0,.14);display:grid;place-items:center;color:var(--accent);z-index:850;opacity:0;transform:translateY(-48px);pointer-events:none}
+#ptr.anim{transition:transform .25s ease,opacity .25s ease}
+#ptr svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#ptr.busy svg{animation:spin .8s linear infinite}
+.note{border:1px solid #f3c7cd;background:#fff6f7;color:#8a1c2b;border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:14px}
 
 /* grupos */
 .grp,.fav,.empty-card{background:var(--card);border-radius:var(--r);margin-bottom:14px;box-shadow:0 1px 2px rgba(20,20,30,.06),0 6px 18px rgba(20,20,30,.05)}
@@ -165,6 +172,7 @@ input.f,.codeline input,.manual input{min-width:0;border:1px solid var(--line);b
 <body>
 
 <header class="top"><div class="in"><h1><span class="title-app">SalidApp</span><span class="title-sep"></span><span class="title-wrap" id="titleWrap"><span class="title-section" id="titleSection">Inicio</span></span></h1><button class="tx" id="ed" hidden>Editar</button></div></header>
+<div id="ptr" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 11-2.6-5.9"/><path d="M20 4v5h-5"/></svg></div>
 
 <main class="view on" id="v-home"><div id="home"></div></main>
 <section class="view" id="v-fav"><div id="favc"></div></section>
@@ -219,7 +227,9 @@ function cleanGroups(){
 }
 
 /* ---------- estado ---------- */
-const S={tab:'home',edit:false,here:null,gs:null,ms:null,flash:''};
+const S={tab:'home',edit:false,here:null,gs:null,ms:null,flash:'',loc:'',pull:false};
+const POSKEY='paradero-pos';
+try{const q=JSON.parse(localStorage.getItem(POSKEY));if(q&&Date.now()-q.t<3*3600e3)S.here={lat:q.lat,lng:q.lng}}catch(e){}
 const arrivals={}; let lastUpdate=null;
 const GT={},GB={};let lastLoc=0;
 
@@ -242,9 +252,15 @@ function gDist(g){
   const ds=[...new Set(g.items.map(i=>i[0]))].map(dist).filter(x=>x!=null);
   return ds.length?ds.reduce((a,b)=>a+b,0)/ds.length:null;
 }
-function locate(cb){
-  if(!navigator.geolocation) return;
-  navigator.geolocation.getCurrentPosition(p=>{S.here={lat:p.coords.latitude,lng:p.coords.longitude};if(cb)cb();else rerender()},()=>{},{timeout:8000,maximumAge:60000});
+function locate(){
+  return new Promise(res=>{
+    if(!navigator.geolocation){S.loc='na';rerender();return res(false)}
+    navigator.geolocation.getCurrentPosition(p=>{
+      S.here={lat:p.coords.latitude,lng:p.coords.longitude};S.loc='ok';
+      try{localStorage.setItem(POSKEY,JSON.stringify({lat:S.here.lat,lng:S.here.lng,t:Date.now()}))}catch(e){}
+      rerender();res(true);
+    },err=>{S.loc=err&&err.code===1?'denied':'error';rerender();res(false)},{timeout:15000,maximumAge:60000});
+  });
 }
 function rerender(){if(S.tab==='home')renderHome();else if(S.tab==='fav')renderFav()}
 
@@ -272,6 +288,8 @@ function renderHome(){
     h+=`<div class="empty-card"><h2>Aún no tienes paraderos</h2><p>Toca un paradero en el mapa y guárdalo en favoritos. Después arma aquí tus grupos de micros.</p><button class="btn" data-go="map">Ir al mapa</button></div>`;
   }else{
     const gs=ordG();
+    const note=!S.here?(S.loc==='denied'?'Sin permiso de ubicación: no puedo poner primero lo más cercano. Actívalo en los ajustes del navegador y desliza hacia abajo para reintentar.':(S.loc==='error'||S.loc==='na')?'No pude obtener tu ubicación todavía. Desliza hacia abajo para reintentar.':''):(gs.some(x=>x.d==null)?'Algunos grupos no se pueden ordenar porque sus paraderos se guardaron sin ubicación. Guárdalos tocándolos en el mapa.':'');
+    if(note&&gs.length) h+=`<p class="note">${note}</p>`;
     if(!gs.length) h+='<p class="empty">Crea tu primer grupo con micros de tus paraderos favoritos.</p>';
     h+=gs.map(({g,d},i)=>{
       const rows=g.items.map(([c,s])=>({c,s,e:etaOf(c,s)})).sort((a,b)=>a.e.lo-b.e.lo);
@@ -574,6 +592,42 @@ document.addEventListener('visibilitychange',()=>{
 $('#ed').onclick=()=>{S.edit=!S.edit;renderHome()};
 initTitle();
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(initTitle);
+
+/* ---------- deslizar hacia abajo para actualizar todo ---------- */
+async function pullRefresh(){
+  S.pull=true;
+  try{await locate();await Promise.all(D.groups.map(g=>refreshGroup(g.id)))}finally{S.pull=false}
+  renderHome();
+}
+(function(){
+  const v=$('#v-home'),ptr=$('#ptr'),ic=ptr.firstElementChild;
+  let y0=null,dy=0,active=false;
+  const reset=()=>{ptr.classList.add('anim');ptr.classList.remove('busy');ptr.style.transform='';ptr.style.opacity='';ic.style.transform='';setTimeout(()=>ptr.classList.remove('anim'),300)};
+  v.addEventListener('touchstart',e=>{
+    if(S.tab!=='home'||S.pull||v.scrollTop>0||e.touches.length!==1){y0=null;return}
+    y0=e.touches[0].clientY;dy=0;active=false;
+  },{passive:true});
+  v.addEventListener('touchmove',e=>{
+    if(y0===null) return;
+    dy=e.touches[0].clientY-y0;
+    if(dy<=0||v.scrollTop>0){if(active){active=false;reset()}return}
+    active=true; if(e.cancelable)e.preventDefault();
+    const p=Math.min(dy*.5,90);
+    ptr.classList.remove('anim');
+    ptr.style.transform=`translateY(${p-48}px)`;ptr.style.opacity=Math.min(1,p/50);
+    ic.style.transform=`rotate(${p*4}deg)`;
+  },{passive:false});
+  v.addEventListener('touchend',async()=>{
+    if(y0===null||!active){y0=null;return}
+    const p=Math.min(dy*.5,90);y0=null;active=false;
+    if(p>=55){
+      ptr.classList.add('anim','busy');ic.style.transform='';ptr.style.transform='translateY(10px)';ptr.style.opacity='1';
+      await pullRefresh();
+    }
+    reset();
+  });
+  v.addEventListener('touchcancel',()=>{y0=null;if(active){active=false;reset()}});
+})();
 
 /* ---------- arranque ---------- */
 renderHome();
