@@ -288,7 +288,7 @@ function renderHome(){
     h+=`<div class="empty-card"><h2>Aún no tienes paraderos</h2><p>Toca un paradero en el mapa y guárdalo en favoritos. Después arma aquí tus grupos de micros.</p><button class="btn" data-go="map">Ir al mapa</button></div>`;
   }else{
     const gs=ordG();
-    const note=!S.here?(S.loc==='denied'?'Sin permiso de ubicación: no puedo poner primero lo más cercano. Actívalo en los ajustes del navegador y desliza hacia abajo para reintentar.':(S.loc==='error'||S.loc==='na')?'No pude obtener tu ubicación todavía. Desliza hacia abajo para reintentar.':''):(gs.some(x=>x.d==null)?'Algunos grupos no se pueden ordenar porque sus paraderos se guardaron sin ubicación. Guárdalos tocándolos en el mapa.':'');
+    const note=!S.here?(S.loc==='denied'?'Sin permiso de ubicación: no puedo poner primero lo más cercano. Actívalo en los ajustes del navegador y desliza hacia abajo para reintentar.':(S.loc==='error'||S.loc==='na')?'No pude obtener tu ubicación todavía. Desliza hacia abajo para reintentar.':''):'';
     if(note&&gs.length) h+=`<p class="note">${note}</p>`;
     if(!gs.length) h+='<p class="empty">Crea tu primer grupo con micros de tus paraderos favoritos.</p>';
     h+=gs.map(({g,d},i)=>{
@@ -443,7 +443,7 @@ $('#msheet').addEventListener('click',e=>{
     const code=($('#mcode').value||m.code).trim().toUpperCase(); if(!code||!m.set.size) return;
     const rec={code,name:m.name,lat:m.lat,lng:m.lng,services:[...m.set].sort(num)};
     const i=D.favs.findIndex(f=>f.code===code); i>=0?D.favs[i]=rec:D.favs.push(rec);
-    m.code=code;cleanGroups();save();restyle();S.flash='Guardado en favoritos';return renderMS();
+    m.code=code;cleanGroups();save();restyle();fillCoords();S.flash='Guardado en favoritos';return renderMS();
   }
   if(t.id==='mdel'){D.favs=D.favs.filter(f=>f.code!==m.code);cleanGroups();save();restyle();S.flash='Quitado de favoritos';return renderMS()}
   if(t.id==='mcancel') closeMS();
@@ -593,10 +593,45 @@ $('#ed').onclick=()=>{S.edit=!S.edit;renderHome()};
 initTitle();
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(initTitle);
 
+/* ---------- ubicación de los paraderos guardados (en segundo plano) ---------- */
+const GBBOX='-33.85,-71.00,-33.20,-70.35';
+let geoBusy=false;
+async function findCoords(codes){
+  const re=`(^|[^A-Za-z0-9])(${codes.join('|')})($|[^A-Za-z0-9])`;
+  const q=`[out:json][timeout:25];node["highway"="bus_stop"][~"."~"${re}"](${GBBOX});out body 200;`;
+  let json=null;
+  for(const url of OVERPASS){
+    try{const r=await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});if(r.ok){json=await r.json();break}}catch(e){}
+  }
+  if(!json) throw new Error('overpass');
+  const out=new Map();
+  for(const el of json.elements||[]){
+    for(const v of Object.values(el.tags||{})){
+      for(const m of String(v).toUpperCase().matchAll(/\bP[A-Z]\d{1,5}\b/g)){
+        if(codes.includes(m[0])&&!out.has(m[0])) out.set(m[0],[el.lat,el.lon]);
+      }
+    }
+  }
+  return out;
+}
+async function fillCoords(){
+  if(geoBusy) return;
+  const now=Date.now();
+  const need=D.favs.filter(f=>(f.lat==null||f.lng==null)&&/^P[A-Z]\d{1,5}$/i.test(f.code)&&(!f.geoT||now-f.geoT>6*3600e3));
+  if(!need.length) return;
+  geoBusy=true;
+  try{
+    const found=await findCoords(need.map(f=>f.code.toUpperCase()));
+    need.forEach(f=>{const c=found.get(f.code.toUpperCase());if(c){f.lat=c[0];f.lng=c[1];delete f.geoT}else f.geoT=now});
+    save();rerender();
+  }catch(e){}
+  finally{geoBusy=false}
+}
+
 /* ---------- deslizar hacia abajo para actualizar todo ---------- */
 async function pullRefresh(){
   S.pull=true;
-  try{await locate();await Promise.all(D.groups.map(g=>refreshGroup(g.id)))}finally{S.pull=false}
+  try{await locate();fillCoords();await Promise.all(D.groups.map(g=>refreshGroup(g.id)))}finally{S.pull=false}
   renderHome();
 }
 (function(){
@@ -632,6 +667,7 @@ async function pullRefresh(){
 /* ---------- arranque ---------- */
 renderHome();
 refreshAll();
+fillCoords();
 })();
 </script>
 </body>
